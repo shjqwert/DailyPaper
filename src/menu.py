@@ -13,6 +13,7 @@ MENU = """
 ╠══════════════════════════════════╣
 ║  【录入】                         ║
 ║    1. 添加今日工作记录             ║
+║   12. 补录历史日期记录             ║
 ╠══════════════════════════════════╣
 ║  【查看明细】                      ║
 ║    2. 今日记录                    ║
@@ -35,8 +36,20 @@ MENU = """
 ╚══════════════════════════════════╝
 """
 
+def add_past():
+    while True:
+        raw = input("\n请输入日期 (格式 YYYY-MM-DD，如 2026-03-01): ").strip()
+        try:
+            from datetime import datetime
+            datetime.strptime(raw, "%Y-%m-%d")
+            return raw
+        except ValueError:
+            print("  格式错误，请重试")
+
+
 ACTIONS = {
     "1":  ("添加今日记录",      lambda cfg: report.cmd_add(cfg)),
+    "12": ("补录历史日期记录",  lambda cfg: report.cmd_add(cfg, add_past())),
     "2":  ("今日明细",          lambda cfg: report.cmd_show("day")),
     "3":  ("本周明细",          lambda cfg: report.cmd_show("week")),
     "4":  ("本月明细",          lambda cfg: report.cmd_show("month")),
