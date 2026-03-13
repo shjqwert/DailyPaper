@@ -1,0 +1,73 @@
+"""每月月报自动填写"""
+from playwright.sync_api import sync_playwright
+import time
+
+# TODO: 填入月报页面的 selector
+SELECTORS = {
+    "月份":     "",
+    "项目":     "",
+    "工作内容": "",
+    "总工时":   "",
+    "提交按钮": "",
+}
+
+MONTHLY_URL = ""  # TODO: 填入月报页面 URL
+
+
+def login(page, cfg):
+    url = MONTHLY_URL or cfg["intranet"]["url"]
+    page.goto(url)
+    page.fill("input[name='username']", cfg["intranet"]["username"])
+    page.fill("input[name='password']", cfg["intranet"]["password"])
+    page.click("button[type='submit']")
+    page.wait_for_load_state("networkidle")
+
+
+def run(cfg: dict, rows: list, start: str, end: str):
+    if not cfg["intranet"]["username"]:
+        print("错误: 请先在 config.json 中填写内网账号和密码")
+        return
+    if not SELECTORS["工作内容"]:
+        print("错误: 请先在 fill/monthly.py 中配置字段 selector")
+        return
+
+    # 按项目+节点汇总
+    summary = {}
+    for r in rows:
+        key = (r["项目"], r["节点"])
+        if key not in summary:
+            summary[key] = {"工时": 0, "内容列表": []}
+        summary[key]["工时"] += r["时间"]
+        summary[key]["内容列表"].append(r["工作内容"])
+
+    print(f"\n=== 本月汇总 [{start} ~ {end}] ===")
+    total = 0
+    for (proj, node), data in summary.items():
+        print(f"  [{proj}] {node}: {data['工时']}h")
+        total += data["工时"]
+    print(f"  总计: {total}h")
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page()
+        login(page, cfg)
+
+        for (proj, node), data in summary.items():
+            content = "\n".join(data["内容列表"])
+            # TODO: 根据实际月报页面结构调整
+            if SELECTORS["项目"]:
+                page.select_option(SELECTORS["项目"], label=proj)
+            if SELECTORS["工作内容"]:
+                page.fill(SELECTORS["工作内容"], content)
+            if SELECTORS["总工时"]:
+                page.fill(SELECTORS["总工时"], str(data["工时"]))
+            time.sleep(0.3)
+
+        confirm = input(f"\n即将提交月报，确认? (y/n): ").strip()
+        if confirm.lower() == "y":
+            page.click(SELECTORS["提交按钮"])
+            page.wait_for_load_state("networkidle")
+            print("✓ 月报提交成功")
+        else:
+            input("已取消，按回车关闭浏览器...")
+        browser.close()
