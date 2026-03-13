@@ -158,6 +158,49 @@ def cmd_hours(scope="day"):
     print(f"\n  总计: {total}h")
 
 
+def cmd_overtime(scope="week", cfg=None):
+    standard = cfg.get("standard_hours", 8) if cfg else 8
+
+    if scope == "week":
+        start, end = db.get_week_range()
+        label = f"本周 [{start} ~ {end}]"
+    elif scope == "month":
+        start, end = db.get_month_range()
+        label = f"本月 [{start} ~ {end}]"
+    else:
+        print("用法: hours week|month")
+        return
+
+    rows = db.query_by_range(start, end)
+    if not rows:
+        print("  (暂无记录)")
+        return
+
+    # 按日期汇总
+    by_date = {}
+    for r in rows:
+        by_date.setdefault(r["date"], 0)
+        by_date[r["date"]] += r["时间"]
+
+    print(f"\n=== 加班统计 {label}（标准工时 {standard}h/天）===\n")
+    total_ot = 0
+    has_ot = False
+    for d in sorted(by_date):
+        daily = by_date[d]
+        ot = round(daily - standard, 2)
+        if ot > 0:
+            print(f"  {d}  当日 {daily}h  加班 +{ot}h")
+            total_ot += ot
+            has_ot = True
+        else:
+            print(f"  {d}  当日 {daily}h")
+
+    if has_ot:
+        print(f"\n  累计加班: {round(total_ot, 2)}h")
+    else:
+        print(f"\n  本期无加班")
+
+
 def cmd_hours_by_month(month_str=None):
     """按指定月份统计工时，month_str 格式 YYYY-MM，不传则交互输入"""
     if not month_str:

@@ -32,6 +32,10 @@ MENU = """
 ╠══════════════════════════════════╣
 ║   11. 指定月份工时统计             ║
 ╠══════════════════════════════════╣
+║  【加班统计】                      ║
+║   13. 本周加班                    ║
+║   14. 本月加班                    ║
+╠══════════════════════════════════╣
 ║    0. 退出                        ║
 ╚══════════════════════════════════╝
 """
@@ -60,6 +64,8 @@ ACTIONS = {
     "9":  ("填写本周周报",      lambda cfg: report.cmd_fill("weekly", cfg)),
     "10": ("填写本月月报",      lambda cfg: report.cmd_fill("monthly", cfg)),
     "11": ("指定月份工时统计",  lambda cfg: report.cmd_hours_by_month()),
+    "13": ("本周加班统计",      lambda cfg: report.cmd_overtime("week", cfg)),
+    "14": ("本月加班统计",      lambda cfg: report.cmd_overtime("month", cfg)),
 }
 
 
