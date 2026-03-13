@@ -27,8 +27,13 @@ def load_config():
         return json.load(f)
 
 
-def pick(prompt, options, allow_custom=False):
-    """数字快速选择"""
+def save_config(cfg):
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+def pick(prompt, options, allow_custom=False, cfg=None, field_key=None):
+    """数字快速选择，手动输入的新值自动保存到 config.json"""
     print(f"\n{prompt}")
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
@@ -37,7 +42,12 @@ def pick(prompt, options, allow_custom=False):
     while True:
         raw = input("请选择编号: ").strip()
         if allow_custom and raw == "0":
-            return input("请输入: ").strip()
+            value = input("请输入: ").strip()
+            if cfg and field_key and value not in cfg["options"][field_key]:
+                cfg["options"][field_key].append(value)
+                save_config(cfg)
+                print(f"  ✓ 已保存至选项列表")
+            return value
         if raw.isdigit() and 1 <= int(raw) <= len(options):
             return options[int(raw) - 1]
         print("  输入无效，请重试")
@@ -50,10 +60,10 @@ def cmd_add(cfg, date_str=None):
 
     print(f"\n=== 添加工作记录 [{date_str}] ===")
 
-    项目 = pick("【项目】", opts["项目"], allow_custom=True)
-    节点 = pick("【节点】", opts["节点"], allow_custom=True)
-    类型 = pick("【类型】", opts["类型"], allow_custom=True)
-    模块 = pick("【模块】", opts["模块"], allow_custom=True)
+    项目 = pick("【项目】", opts["项目"], allow_custom=True, cfg=cfg, field_key="项目")
+    节点 = pick("【节点】", opts["节点"], allow_custom=True, cfg=cfg, field_key="节点")
+    类型 = pick("【类型】", opts["类型"], allow_custom=True, cfg=cfg, field_key="类型")
+    模块 = pick("【模块】", opts["模块"], allow_custom=True, cfg=cfg, field_key="模块")
     时间类型 = pick("【时间类型】", opts["时间类型"])
 
     while True:
@@ -110,6 +120,50 @@ def cmd_hours(scope="day"):
         return
 
     # 按项目汇总
+    summary = {}
+    total = 0
+    for r in rows:
+        proj = r["项目"]
+        summary.setdefault(proj, {"工时": 0, "明细": []})
+        summary[proj]["工时"] += r["时间"]
+        summary[proj]["明细"].append(f"{r['date']} {r['模块']} {r['工作内容']} ({r['时间']}h)")
+        total += r["时间"]
+
+    print(f"\n=== 按项目工时统计 {label} ===")
+    bar_max = 20
+    max_h = max(v["工时"] for v in summary.values()) or 1
+    for proj, data in sorted(summary.items(), key=lambda x: -x[1]["工时"]):
+        bar_len = int(data["工时"] / max_h * bar_max)
+        bar = "█" * bar_len
+        pct = data["工时"] / total * 100
+        print(f"\n  {proj}")
+        print(f"    {bar} {data['工时']}h ({pct:.1f}%)")
+        for item in data["明细"]:
+            print(f"      · {item}")
+    print(f"\n  总计: {total}h")
+
+
+def cmd_hours_by_month(month_str=None):
+    """按指定月份统计工时，month_str 格式 YYYY-MM，不传则交互输入"""
+    if not month_str:
+        month_str = input("\n请输入月份 (格式 YYYY-MM，如 2026-02): ").strip()
+    try:
+        year, month = int(month_str[:4]), int(month_str[5:7])
+    except (ValueError, IndexError):
+        print("  格式错误，请输入如 2026-02")
+        return
+    from datetime import date as _date
+    import calendar
+    start = f"{year}-{month:02d}-01"
+    last_day = calendar.monthrange(year, month)[1]
+    end = f"{year}-{month:02d}-{last_day:02d}"
+    rows = db.query_by_range(start, end)
+    label = f"{year}年{month:02d}月 [{start} ~ {end}]"
+
+    if not rows:
+        print(f"  {label} 暂无记录")
+        return
+
     summary = {}
     total = 0
     for r in rows:

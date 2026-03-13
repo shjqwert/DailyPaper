@@ -29,21 +29,24 @@ MENU = """
 ║    9. 填写本周周报                 ║
 ║   10. 填写本月月报                 ║
 ╠══════════════════════════════════╣
+║   11. 指定月份工时统计             ║
+╠══════════════════════════════════╣
 ║    0. 退出                        ║
 ╚══════════════════════════════════╝
 """
 
 ACTIONS = {
-    "1":  ("添加今日记录",   lambda cfg: report.cmd_add(cfg)),
-    "2":  ("今日明细",       lambda cfg: report.cmd_show("day")),
-    "3":  ("本周明细",       lambda cfg: report.cmd_show("week")),
-    "4":  ("本月明细",       lambda cfg: report.cmd_show("month")),
-    "5":  ("今日工时统计",   lambda cfg: report.cmd_hours("day")),
-    "6":  ("本周工时统计",   lambda cfg: report.cmd_hours("week")),
-    "7":  ("本月工时统计",   lambda cfg: report.cmd_hours("month")),
-    "8":  ("填写今日日报",   lambda cfg: report.cmd_fill("daily", cfg)),
-    "9":  ("填写本周周报",   lambda cfg: report.cmd_fill("weekly", cfg)),
-    "10": ("填写本月月报",   lambda cfg: report.cmd_fill("monthly", cfg)),
+    "1":  ("添加今日记录",      lambda cfg: report.cmd_add(cfg)),
+    "2":  ("今日明细",          lambda cfg: report.cmd_show("day")),
+    "3":  ("本周明细",          lambda cfg: report.cmd_show("week")),
+    "4":  ("本月明细",          lambda cfg: report.cmd_show("month")),
+    "5":  ("今日工时统计",      lambda cfg: report.cmd_hours("day")),
+    "6":  ("本周工时统计",      lambda cfg: report.cmd_hours("week")),
+    "7":  ("本月工时统计",      lambda cfg: report.cmd_hours("month")),
+    "8":  ("填写今日日报",      lambda cfg: report.cmd_fill("daily", cfg)),
+    "9":  ("填写本周周报",      lambda cfg: report.cmd_fill("weekly", cfg)),
+    "10": ("填写本月月报",      lambda cfg: report.cmd_fill("monthly", cfg)),
+    "11": ("指定月份工时统计",  lambda cfg: report.cmd_hours_by_month()),
 }
 
 
