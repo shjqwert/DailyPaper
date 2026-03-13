@@ -67,37 +67,41 @@ def cmd_add(cfg, date_str=None):
         date_str = date.today().isoformat()
     opts = cfg["options"]
 
-    print(f"\n=== 添加工作记录 [{date_str}] ===")
-
-    项目 = pick("【项目】", opts["项目"], allow_custom=True, cfg=cfg, field_key="项目")
-    节点 = pick("【节点】", opts["节点"], allow_custom=True, cfg=cfg, field_key="节点")
-    类型 = pick("【类型】", opts["类型"], allow_custom=True, cfg=cfg, field_key="类型")
-    模块 = pick("【模块】", opts["模块"], allow_custom=True, cfg=cfg, field_key="模块")
-    时间类型 = pick("【时间类型】", opts["时间类型"])
-
     while True:
-        raw = input("\n【工时(小时)】请输入 0~24 (如 2 或 1.5，q 取消): ").strip()
-        if raw.lower() == "q":
-            raise GoBack
-        try:
-            时间 = float(raw)
-            if 0 < 时间 <= 24:
+        print(f"\n=== 添加工作记录 [{date_str}] ===")
+
+        项目 = pick("【项目】", opts["项目"], allow_custom=True, cfg=cfg, field_key="项目")
+        节点 = pick("【节点】", opts["节点"], allow_custom=True, cfg=cfg, field_key="节点")
+        类型 = pick("【类型】", opts["类型"], allow_custom=True, cfg=cfg, field_key="类型")
+        模块 = pick("【模块】", opts["模块"], allow_custom=True, cfg=cfg, field_key="模块")
+        时间类型 = pick("【时间类型】", opts["时间类型"])
+
+        while True:
+            raw = input("\n【工时(小时)】请输入 0.5~24 (如 2 或 1.5，q 取消): ").strip()
+            if raw.lower() == "q":
+                raise GoBack
+            try:
+                时间 = float(raw)
+                if 0 < 时间 <= 24:
+                    break
+                print("  工时需大于 0 且不超过 24 小时")
+            except ValueError:
+                print("  请输入数字")
+
+        while True:
+            工作内容 = input("\n【工作内容】请简要描述 (q 取消): ").strip()
+            if 工作内容.lower() == "q":
+                raise GoBack
+            if 工作内容:
                 break
-            print("  工时需在 0~24 小时之间")
-        except ValueError:
-            print("  请输入数字")
+            print("  工作内容不能为空")
 
-    工作内容 = input("\n【工作内容】请简要描述 (q 取消): ").strip()
-    if 工作内容.lower() == "q":
-        raise GoBack
+        db.add_log(date_str, 项目, 节点, 类型, 模块, 时间类型, 时间, 工作内容)
+        print(f"\n✓ 已保存: [{项目}] {模块} - {工作内容} ({时间}h)")
 
-    db.add_log(date_str, 项目, 节点, 类型, 模块, 时间类型, 时间, 工作内容)
-
-    print(f"\n✓ 已保存: [{项目}] {模块} - {工作内容} ({时间}h)")
-
-    again = input("\n继续添加? (y/n, 默认n): ").strip().lower()
-    if again == "y":
-        cmd_add(cfg, date_str)
+        again = input("\n继续添加? (y/n, 默认n): ").strip().lower()
+        if again != "y":
+            break
 
 
 def fmt_rows(rows):
@@ -111,6 +115,31 @@ def fmt_rows(rows):
               f"{r['时间']}h | {r['工作内容']}")
         total += r['时间']
     print(f"\n  合计工时: {total}h")
+
+
+def _print_hours_summary(rows, label):
+    """按项目汇总工时并打印，供 cmd_hours / cmd_hours_by_month 共用"""
+    summary = {}
+    total = 0
+    for r in rows:
+        proj = r["项目"]
+        summary.setdefault(proj, {"工时": 0, "明细": []})
+        summary[proj]["工时"] += r["时间"]
+        summary[proj]["明细"].append(f"{r['date']} {r['模块']} {r['工作内容']} ({r['时间']}h)")
+        total += r["时间"]
+
+    print(f"\n=== 按项目工时统计 {label} ===")
+    bar_max = 20
+    max_h = max(v["工时"] for v in summary.values()) or 1
+    for proj, data in sorted(summary.items(), key=lambda x: -x[1]["工时"]):
+        bar_len = int(data["工时"] / max_h * bar_max)
+        bar = "█" * bar_len
+        pct = data["工时"] / total * 100
+        print(f"\n  {proj}")
+        print(f"    {bar} {data['工时']}h ({pct:.1f}%)")
+        for item in data["明细"]:
+            print(f"      · {item}")
+    print(f"\n  总计: {total}h")
 
 
 def cmd_hours(scope="day"):
@@ -133,29 +162,7 @@ def cmd_hours(scope="day"):
     if not rows:
         print("  (暂无记录)")
         return
-
-    # 按项目汇总
-    summary = {}
-    total = 0
-    for r in rows:
-        proj = r["项目"]
-        summary.setdefault(proj, {"工时": 0, "明细": []})
-        summary[proj]["工时"] += r["时间"]
-        summary[proj]["明细"].append(f"{r['date']} {r['模块']} {r['工作内容']} ({r['时间']}h)")
-        total += r["时间"]
-
-    print(f"\n=== 按项目工时统计 {label} ===")
-    bar_max = 20
-    max_h = max(v["工时"] for v in summary.values()) or 1
-    for proj, data in sorted(summary.items(), key=lambda x: -x[1]["工时"]):
-        bar_len = int(data["工时"] / max_h * bar_max)
-        bar = "█" * bar_len
-        pct = data["工时"] / total * 100
-        print(f"\n  {proj}")
-        print(f"    {bar} {data['工时']}h ({pct:.1f}%)")
-        for item in data["明细"]:
-            print(f"      · {item}")
-    print(f"\n  总计: {total}h")
+    _print_hours_summary(rows, label)
 
 
 def cmd_overtime(scope="week", cfg=None):
@@ -203,15 +210,16 @@ def cmd_overtime(scope="week", cfg=None):
 
 def cmd_hours_by_month(month_str=None):
     """按指定月份统计工时，month_str 格式 YYYY-MM，不传则交互输入"""
+    import calendar
+    from datetime import datetime as _dt
     if not month_str:
         month_str = input("\n请输入月份 (格式 YYYY-MM，如 2026-02): ").strip()
     try:
-        year, month = int(month_str[:4]), int(month_str[5:7])
-    except (ValueError, IndexError):
+        dt = _dt.strptime(month_str, "%Y-%m")
+        year, month = dt.year, dt.month
+    except ValueError:
         print("  格式错误，请输入如 2026-02")
         return
-    from datetime import date as _date
-    import calendar
     start = f"{year}-{month:02d}-01"
     last_day = calendar.monthrange(year, month)[1]
     end = f"{year}-{month:02d}-{last_day:02d}"
@@ -221,28 +229,7 @@ def cmd_hours_by_month(month_str=None):
     if not rows:
         print(f"  {label} 暂无记录")
         return
-
-    summary = {}
-    total = 0
-    for r in rows:
-        proj = r["项目"]
-        summary.setdefault(proj, {"工时": 0, "明细": []})
-        summary[proj]["工时"] += r["时间"]
-        summary[proj]["明细"].append(f"{r['date']} {r['模块']} {r['工作内容']} ({r['时间']}h)")
-        total += r["时间"]
-
-    print(f"\n=== 按项目工时统计 {label} ===")
-    bar_max = 20
-    max_h = max(v["工时"] for v in summary.values()) or 1
-    for proj, data in sorted(summary.items(), key=lambda x: -x[1]["工时"]):
-        bar_len = int(data["工时"] / max_h * bar_max)
-        bar = "█" * bar_len
-        pct = data["工时"] / total * 100
-        print(f"\n  {proj}")
-        print(f"    {bar} {data['工时']}h ({pct:.1f}%)")
-        for item in data["明细"]:
-            print(f"      · {item}")
-    print(f"\n  总计: {total}h")
+    _print_hours_summary(rows, label)
 
 
 def cmd_show(scope="day"):

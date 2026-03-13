@@ -6,6 +6,7 @@
 4. 运行 python report.py fill daily 测试
 """
 from playwright.sync_api import sync_playwright
+from fill.base import login
 import time
 
 # ============================================================
@@ -24,15 +25,6 @@ SELECTORS = {
     "提交按钮": "",   # TODO
     "添加行按钮": "", # TODO (如果每行需要点"新增"按钮)
 }
-
-
-def login(page, cfg):
-    page.goto(cfg["intranet"]["url"])
-    # TODO: 根据实际登录页面调整 selector
-    page.fill("input[name='username']", cfg["intranet"]["username"])
-    page.fill("input[name='password']", cfg["intranet"]["password"])
-    page.click("button[type='submit']")
-    page.wait_for_load_state("networkidle")
 
 
 def fill_one_row(page, row: dict):
@@ -69,22 +61,31 @@ def run(cfg: dict, rows: list):
         return
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)  # headless=False 方便调试
+        browser = p.chromium.launch(headless=False)
         page = browser.new_page()
-        login(page, cfg)
+        try:
+            login(page, cfg)
+        except RuntimeError as e:
+            print(f"错误: {e}")
+            browser.close()
+            return
 
-        for row in rows:
-            fill_one_row(page, row)
-            time.sleep(0.3)
+        try:
+            for row in rows:
+                fill_one_row(page, row)
+                time.sleep(0.3)
 
-        # 提交
-        if SELECTORS["提交按钮"]:
-            confirm = input(f"\n即将提交 {len(rows)} 条记录，确认? (y/n): ").strip()
-            if confirm.lower() == "y":
-                page.click(SELECTORS["提交按钮"])
-                page.wait_for_load_state("networkidle")
-                print("✓ 日报提交成功")
-            else:
-                print("已取消，浏览器保持打开，可手动检查后提交")
-                input("按回车关闭浏览器...")
-        browser.close()
+            if SELECTORS["提交按钮"]:
+                confirm = input(f"\n即将提交 {len(rows)} 条记录，确认? (y/n): ").strip()
+                if confirm.lower() == "y":
+                    page.click(SELECTORS["提交按钮"])
+                    page.wait_for_load_state("networkidle")
+                    print("✓ 日报提交成功")
+                else:
+                    print("已取消，浏览器保持打开，可手动检查后提交")
+                    input("按回车关闭浏览器...")
+        except Exception as e:
+            print(f"填写过程出错: {e}")
+            input("按回车关闭浏览器...")
+        finally:
+            browser.close()
