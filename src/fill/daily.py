@@ -56,8 +56,10 @@ def run(cfg: dict, rows: list):
     if not cfg["intranet"]["username"]:
         print("错误: 请先在 config.json 中填写内网账号和密码")
         return
-    if not SELECTORS["工作内容"]:
-        print("错误: 请先在 fill/daily.py 中配置字段 selector")
+    required = ["工作内容", "时间", "提交按钮"]
+    missing = [k for k in required if not SELECTORS.get(k)]
+    if missing:
+        print(f"错误: fill/daily.py 中以下 selector 未配置: {', '.join(missing)}")
         return
 
     with sync_playwright() as p:

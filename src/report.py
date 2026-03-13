@@ -29,7 +29,16 @@ class GoBack(Exception):
 
 def load_config():
     with open(CONFIG_PATH, encoding="utf-8") as f:
-        return json.load(f)
+        cfg = json.load(f)
+    required = ["intranet", "options", "standard_hours"]
+    missing = [k for k in required if k not in cfg]
+    if missing:
+        raise ValueError(f"config.json 缺少必需字段: {', '.join(missing)}")
+    required_options = ["项目", "节点", "类型", "模块", "时间类型"]
+    missing_opts = [k for k in required_options if k not in cfg["options"]]
+    if missing_opts:
+        raise ValueError(f"config.json options 缺少字段: {', '.join(missing_opts)}")
+    return cfg
 
 
 def save_config(cfg):
@@ -52,6 +61,9 @@ def pick(prompt, options, allow_custom=False, cfg=None, field_key=None):
             value = input("请输入 (q 取消): ").strip()
             if value.lower() == "q":
                 raise GoBack
+            if len(value) > 50:
+                print("  输入过长，请控制在 50 字以内")
+                continue
             if cfg and field_key and value not in cfg["options"][field_key]:
                 cfg["options"][field_key].append(value)
                 save_config(cfg)
@@ -248,8 +260,18 @@ def cmd_show(scope="day"):
 
 
 def cmd_delete(log_id):
-    db.delete_log(int(log_id))
-    print(f"✓ 已删除记录 id={log_id}")
+    rows = db.query_by_id(int(log_id))
+    if not rows:
+        print(f"  未找到 id={log_id} 的记录")
+        return
+    r = rows[0]
+    print(f"\n  将删除: [{r['id']}] {r['date']} | {r['项目']} | {r['模块']} | {r['时间']}h | {r['工作内容']}")
+    confirm = input("  确认删除? (y/n): ").strip().lower()
+    if confirm == "y":
+        db.delete_log(int(log_id))
+        print(f"  ✓ 已删除")
+    else:
+        print(f"  已取消")
 
 
 def cmd_fill(scope, cfg):

@@ -37,6 +37,13 @@ def add_log(date_str, 项目, 节点, 类型, 模块, 时间类型, 时间, 工�
         )
 
 
+def query_by_id(log_id: int):
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM logs WHERE id=?", (log_id,)
+        ).fetchall()
+
+
 def query_by_date(date_str):
     with get_conn() as conn:
         return conn.execute(
