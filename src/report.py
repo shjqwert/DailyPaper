@@ -76,12 +76,14 @@ def cmd_add(cfg, date_str=None):
     时间类型 = pick("【时间类型】", opts["时间类型"])
 
     while True:
-        raw = input("\n【工时(小时)】请输入(如 2 或 1.5，q 取消): ").strip()
+        raw = input("\n【工时(小时)】请输入 0~24 (如 2 或 1.5，q 取消): ").strip()
         if raw.lower() == "q":
             raise GoBack
         try:
             时间 = float(raw)
-            break
+            if 0 < 时间 <= 24:
+                break
+            print("  工时需在 0~24 小时之间")
         except ValueError:
             print("  请输入数字")
 
