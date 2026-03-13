@@ -22,6 +22,11 @@ import db
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
 
 
+class GoBack(Exception):
+    """用户输入 q 时抛出，取消当前录入返回菜单"""
+    pass
+
+
 def load_config():
     with open(CONFIG_PATH, encoding="utf-8") as f:
         return json.load(f)
@@ -33,16 +38,20 @@ def save_config(cfg):
 
 
 def pick(prompt, options, allow_custom=False, cfg=None, field_key=None):
-    """数字快速选择，手动输入的新值自动保存到 config.json"""
-    print(f"\n{prompt}")
+    """数字快速选择，手动输入的新值自动保存到 config.json。输入 q 取消返回菜单"""
+    print(f"\n{prompt}  (q 取消)")
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
     if allow_custom:
         print(f"  0. 手动输入")
     while True:
         raw = input("请选择编号: ").strip()
+        if raw.lower() == "q":
+            raise GoBack
         if allow_custom and raw == "0":
-            value = input("请输入: ").strip()
+            value = input("请输入 (q 取消): ").strip()
+            if value.lower() == "q":
+                raise GoBack
             if cfg and field_key and value not in cfg["options"][field_key]:
                 cfg["options"][field_key].append(value)
                 save_config(cfg)
@@ -67,14 +76,18 @@ def cmd_add(cfg, date_str=None):
     时间类型 = pick("【时间类型】", opts["时间类型"])
 
     while True:
-        raw = input("\n【工时(小时)】请输入(如 2 或 1.5): ").strip()
+        raw = input("\n【工时(小时)】请输入(如 2 或 1.5，q 取消): ").strip()
+        if raw.lower() == "q":
+            raise GoBack
         try:
             时间 = float(raw)
             break
         except ValueError:
             print("  请输入数字")
 
-    工作内容 = input("\n【工作内容】请简要描述: ").strip()
+    工作内容 = input("\n【工作内容】请简要描述 (q 取消): ").strip()
+    if 工作内容.lower() == "q":
+        raise GoBack
 
     db.add_log(date_str, 项目, 节点, 类型, 模块, 时间类型, 时间, 工作内容)
 

@@ -77,7 +77,10 @@ def main():
         elif choice in ACTIONS:
             name, action = ACTIONS[choice]
             print(f"\n>>> {name}")
-            action(cfg)
+            try:
+                action(cfg)
+            except report.GoBack:
+                print("\n  已取消，返回菜单")
             input("\n按回车返回菜单...")
         else:
             print("无效输入，请重试")
